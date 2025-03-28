@@ -2,3 +2,4 @@ pyserial==3.5
 google-generativeai
 Pillow
 pyttsx3==2.98
+ultralytics==8.3.97
