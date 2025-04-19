@@ -167,7 +167,7 @@ class Tracker:
 
             img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-            direction, pitch, yaw, roll = tracker.predict_face_direction(img_rgb)
+            direction, pitch, yaw, roll = self.predict_face_direction(img_rgb)
             mp.solutions.drawing_utils.draw_landmarks(
                 image=frame,
                 landmark_list=self._landmarks,
