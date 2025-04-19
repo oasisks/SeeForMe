@@ -66,9 +66,11 @@ class Tracker:
         :param forward_pitch_min: the minimum absolute threshold for pitch to be considered as forward
         """
         self._mp_face = mp.solutions.face_mesh.FaceMesh(refine_landmarks=True)
+        self._mesh_spec = mp.solutions.drawing_utils.DrawingSpec(color=(0, 255, 0), thickness=1, circle_radius=1)
         self._left_yaw_threshold = left_yaw_threshold
         self._right_yaw_threshold = right_yaw_threshold
         self._forward_pitch_min = abs(forward_pitch_min)
+        self._landmarks = []
 
     def predict_face_direction(self, img_rbg: np.ndarray) -> Tuple[FACE_DIRECTION, int, int, int]:
         """
@@ -83,7 +85,8 @@ class Tracker:
                 raise ValueError("The channel does not equal to 3")
 
             results = self._mp_face.process(img_rbg)
-            landmarks = results.multi_face_landmarks[0].landmark
+            self._landmarks = results.multi_face_landmarks[0]
+            landmarks = self._landmarks.landmark
 
             # 2D image points
             image_points = []
@@ -149,33 +152,43 @@ class Tracker:
             print(e)
             return FACE_DIRECTION.INDETERMINATE, -1, -1, -1
 
+    def video_capture(self) -> None:
+        """
+        Calls this function to produce a live video overlay of what is being
+
+        Press Esc to stop
+        :return: None
+        """
+        cap = cv2.VideoCapture(0)
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            direction, pitch, yaw, roll = tracker.predict_face_direction(img_rgb)
+            mp.solutions.drawing_utils.draw_landmarks(
+                image=frame,
+                landmark_list=self._landmarks,
+                connections=mp.solutions.face_mesh.FACEMESH_TESSELATION,
+                landmark_drawing_spec=None,
+                connection_drawing_spec=self._mesh_spec
+            )
+
+            text = f"Pitch: {pitch:.1f}, Yaw: {yaw:.1f}, Roll: {roll:.1f}"
+            cv2.putText(frame, text, (20, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            cv2.putText(frame, direction.value, (20, 60),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 255), 2)
+
+            cv2.imshow("Head Pose + UV Mesh", frame)
+            if cv2.waitKey(1) & 0xFF == 27:
+                break
+        cap.release()
+        cv2.destroyAllWindows()
 
 
-
-mp_face = mp.solutions.face_mesh.FaceMesh(refine_landmarks=True)
-
-
-cap = cv2.VideoCapture(0)
-tracker = Tracker(-30, 30, 165)
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
-
-    img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-    direction, pitch, yaw, roll = tracker.predict_face_direction(img_rgb)
-    # Display
-    text = f"Pitch: {pitch:.1f}, Yaw: {yaw:.1f}, Roll: {roll:.1f}"
-    cv2.putText(frame, text, (20,30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
-
-    direction = direction.value
-
-    cv2.putText(frame, direction, (20,60), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0,255,255), 2)
-
-    cv2.imshow("Head Pose", frame)
-    if cv2.waitKey(1) & 0xFF == 27:
-        break
-
-cap.release()
-cv2.destroyAllWindows()
+if __name__ == '__main__':
+    tracker = Tracker(-30, 30, 165)
+    tracker.video_capture()
