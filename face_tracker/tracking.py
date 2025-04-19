@@ -15,7 +15,7 @@ class FACE(Enum):
 
 
 # 3D model points of a generic face model (in mm)
-# https://learnopencv.com/head-pose-estimation-using-opencv-and-dlib/?utm_source=chatgpt.com
+# https://learnopencv.com/head-pose-estimation-using-opencv-and-dlib/
 MODEL_POINTS = np.array([
     FACE.NOSE.value,
     FACE.CHIN.value,
@@ -150,6 +150,8 @@ class Tracker:
             return FACE_DIRECTION.INDETERMINATE, -1, -1, -1
 
 
+
+
 mp_face = mp.solutions.face_mesh.FaceMesh(refine_landmarks=True)
 
 
@@ -159,7 +161,7 @@ while True:
     ret, frame = cap.read()
     if not ret:
         break
-    h, w = frame.shape[:2]
+
     img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     direction, pitch, yaw, roll = tracker.predict_face_direction(img_rgb)
