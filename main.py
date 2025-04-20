@@ -3,6 +3,8 @@ from YOLO_test.YOLO import yolo_object_detection_v11, object_description_generat
 from audio_output import text_to_speech
 import cv2
 import mediapipe as mp
+import serial
+import time
 
 # Global variables
 scene_camera_i = 1  # Index 1 is typically the Camo webcam, but this may vary
@@ -12,6 +14,16 @@ def main():
     # Initialize the face tracker
     current_objects = None
     face_tracker = Tracker(-30, 30, 165)
+
+    # Initialize the serial port (haptics)
+    ser = serial.Serial('COM3', 9600, timeout=1)  # Change to your port (e.g., "/dev/ttyUSB0" for Linux)
+    time.sleep(2)
+
+    if ser.is_open:
+        print("Serial port opened successfully!")
+    else:
+        print("Failed to open serial port!")
+    ser.flush()
 
     # Open the webcam feed from Camo (adjust the index if needed)
     user_camera = cv2.VideoCapture(user_camera_i)  # Index 0 is typically the built-in webcam
@@ -49,20 +61,31 @@ def main():
         forward_scene = scene_img_rgb[:, splitter:splitter*2, :]
         right_scene = scene_img_rgb[:, splitter*2:, :]
 
-        scene_img = scene_img_rgb
-        if direction.value == "Left":
-            scene_img = left_scene
-        elif direction.value == "Right":
-            scene_img = right_scene
-        elif direction.value == "Forward":
-            scene_img = forward_scene
+        detected_objects_left = yolo_object_detection_v11(left_scene)
+        detected_objects_forward = yolo_object_detection_v11(forward_scene)
+        detected_objects_right = yolo_object_detection_v11(right_scene)
 
-        detected_objects = yolo_object_detection_v11(scene_img)
-        if detected_objects != current_objects:
+        detected_objects = current_objects
+        if direction.value == "Left":
+            detected_objects = detected_objects_left
+        elif direction.value == "Right":
+            detected_objects = detected_objects_right
+        elif direction.value == "Forward":
+            detected_objects = detected_objects_forward
+
+        if detected_objects != current_objects and len(detected_objects) > 0:
             current_objects = detected_objects
             object_descriptions = object_description_generator(detected_objects)
             text_to_speech(object_descriptions)       
             print(object_descriptions)    
+
+        # Haptics object warning loop
+        if direction.value != "Left" and len(detected_objects_left) > 0:
+            ser.write(b'WARN: LEFT\n')
+        if direction.value != "Right" and len(detected_objects_right) > 0:
+            ser.write(b'WARN: RIGHT\n')
+        if direction.value != "Forward" and len(detected_objects_forward) > 0:
+            ser.write(b'WARN: FORWARD\n')
        
         # Display the resulting frame
         cv2.imshow('Camo iPhone Camera', scene_camera_frame)
