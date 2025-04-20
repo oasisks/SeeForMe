@@ -1,6 +1,7 @@
 import pyttsx3 
+from typing import List
 
-def text_to_speech(text: str, voice_id=None) -> None:
+def text_to_speech(text: str | List[str], voice_id=None) -> None:
     """
     text: text to be spoken 
     voice_id: id of the voice to be
@@ -15,8 +16,12 @@ def text_to_speech(text: str, voice_id=None) -> None:
     voices = engine.getProperty('voices')       #getting details of current voice
     if voice_id:
         engine.setProperty('voice', voices[voice_id].id)
-
-    engine.say(text)
+    
+    if isinstance(text, list):
+        for t in text:
+            engine.say(t)
+    else:
+        engine.say(text)
     engine.runAndWait()
     engine.stop()
 

@@ -41,15 +41,12 @@ def yolo_object_detection_v11(img_rgb: np.ndarray) -> Dict[str, int]:
 
     return object_frequencies
 
-def object_description_generator(img_rgb: np.ndarray) -> List[str]:
+def object_description_generator(detected_objects:  Dict[str, int]) -> List[str]:
     """
-    Generate object descriptions from an image using YOLO11.
-    :param img_rgb: RGB image as a numpy array.
+    Generate object descriptions based on detected objects.
+    :param detected_objects: Dictionary of detected objects.
     :return: List of detected objects with descriptions.
     """
-    # Get the detected objects
-    detected_objects = yolo_object_detection_v11(img_rgb)
-
     # Generate descriptions for each detected object
     object_descriptions = []
     for obj, freq in detected_objects.items():
@@ -59,7 +56,7 @@ def object_description_generator(img_rgb: np.ndarray) -> List[str]:
             description = f"There is a {obj}"
         object_descriptions.append(description)
 
-    return object_descriptions
+    return object_descriptions if len(object_descriptions) > 0 else ["No objects detected"]
 
 if __name__ == "__main__":
     # Example usage

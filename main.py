@@ -10,7 +10,7 @@ user_camera_i = 0 # Index 0 is typically the built-in webcam
 
 def main():
     # Initialize the face tracker
-    current_objects = []
+    current_objects = None
     face_tracker = Tracker(-30, 30, 165)
 
     # Open the webcam feed from Camo (adjust the index if needed)
@@ -44,15 +44,25 @@ def main():
         
         # Perform object detection on the scene camera frame
         scene_img_rgb = cv2.cvtColor(scene_camera_frame, cv2.COLOR_BGR2RGB)
-        object_descriptions = object_description_generator(scene_img_rgb)
+        splitter = scene_img_rgb.shape[1] // 3
+        left_scene = scene_img_rgb[:, :splitter, :]
+        forward_scene = scene_img_rgb[:, splitter:splitter*2, :]
+        right_scene = scene_img_rgb[:, splitter*2:, :]
 
-        # if object_descriptions != current_objects:
-        #     # Update the current objects list
-        #     current_objects = object_descriptions
-        #     # Speak the detected objects
-        #     for obj in object_descriptions:
-        #         text_to_speech(obj)
-        print(object_descriptions)
+        scene_img = scene_img_rgb
+        if direction.value == "Left":
+            scene_img = left_scene
+        elif direction.value == "Right":
+            scene_img = right_scene
+        elif direction.value == "Forward":
+            scene_img = forward_scene
+
+        detected_objects = yolo_object_detection_v11(scene_img)
+        if detected_objects != current_objects:
+            current_objects = detected_objects
+            object_descriptions = object_description_generator(detected_objects)
+            text_to_speech(object_descriptions)       
+            print(object_descriptions)    
        
         # Display the resulting frame
         cv2.imshow('Camo iPhone Camera', scene_camera_frame)
@@ -69,16 +79,16 @@ def main():
 
 if __name__ == "__main__":
 
-    def check_available_cameras():
-        for i in range(5):  # Try camera indices 0 to 4
-            cap = cv2.VideoCapture(i)
-            if cap.isOpened():
-                print(f"Camera {i} is available")
-                cap.release()
+    # def check_available_cameras():
+    #     for i in range(5):  # Try camera indices 0 to 4
+    #         cap = cv2.VideoCapture(i)
+    #         if cap.isOpened():
+    #             print(f"Camera {i} is available")
+    #             cap.release()
 
-    check_available_cameras()
+    # check_available_cameras()
 
-    # main()
+    main()
 
     # Parse the scenario
 
