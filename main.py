@@ -1,19 +1,21 @@
 from face_tracker.tracking import Tracker
 from YOLO_test.YOLO import yolo_object_detection_v11, object_description_generator
+from audio_output import text_to_speech
 import cv2
 import mediapipe as mp
 
-
+# Global variables
 scene_camera_i = 1  # Index 1 is typically the Camo webcam, but this may vary
 user_camera_i = 0 # Index 0 is typically the built-in webcam
 
 def main():
     # Initialize the face tracker
+    current_objects = []
     face_tracker = Tracker(-30, 30, 165)
 
     # Open the webcam feed from Camo (adjust the index if needed)
-    scene_camera = cv2.VideoCapture(scene_camera_i)  # Index 1 is typically the Camo webcam, but this may vary
     user_camera = cv2.VideoCapture(user_camera_i)  # Index 0 is typically the built-in webcam
+    scene_camera = cv2.VideoCapture(scene_camera_i)  # Index 1 is typically the Camo webcam, but this may vary
     while True:
         # Capture frame-by-frame
         ret, scene_camera_frame = scene_camera.read()
@@ -43,6 +45,13 @@ def main():
         # Perform object detection on the scene camera frame
         scene_img_rgb = cv2.cvtColor(scene_camera_frame, cv2.COLOR_BGR2RGB)
         object_descriptions = object_description_generator(scene_img_rgb)
+
+        # if object_descriptions != current_objects:
+        #     # Update the current objects list
+        #     current_objects = object_descriptions
+        #     # Speak the detected objects
+        #     for obj in object_descriptions:
+        #         text_to_speech(obj)
         print(object_descriptions)
        
         # Display the resulting frame
@@ -59,7 +68,17 @@ def main():
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    main()
+
+    def check_available_cameras():
+        for i in range(5):  # Try camera indices 0 to 4
+            cap = cv2.VideoCapture(i)
+            if cap.isOpened():
+                print(f"Camera {i} is available")
+                cap.release()
+
+    check_available_cameras()
+
+    # main()
 
     # Parse the scenario
 

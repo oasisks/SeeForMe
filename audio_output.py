@@ -21,5 +21,5 @@ def text_to_speech(text: str, voice_id=None) -> None:
     engine.stop()
 
 # text_to_speech("tôi muốn ăn", 73)
-text_to_speech("Hello, how are you?",  108)
-text_to_speech("Hello, how are you?", 14)
+# text_to_speech("Hello, how are you?",  108)
+# text_to_speech("Hello, how are you?", 14)
