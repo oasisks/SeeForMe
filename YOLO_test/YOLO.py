@@ -13,7 +13,7 @@ def yolo_object_detection_v11(img_rgb: np.ndarray) -> List[str]:
 
     # Perform inference on an image
     results = model(img_rgb)
-    return results[0].to_df()['name'].to_list()
+    return results[0].to_df()['name'].to_list() if len(results[0]) > 0 else []
 
 def object_description_generator(img_rgb: np.ndarray) -> List[str]:
     """
