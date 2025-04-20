@@ -56,27 +56,18 @@ def main():
         
         # Perform object detection on the scene camera frame
         scene_img_rgb = cv2.cvtColor(scene_camera_frame, cv2.COLOR_BGR2RGB)
-        splitter = scene_img_rgb.shape[1] // 3
-        left_scene = scene_img_rgb[:, :splitter, :]
-        forward_scene = scene_img_rgb[:, splitter:splitter*2, :]
-        right_scene = scene_img_rgb[:, splitter*2:, :]
-
-        detected_objects_left = yolo_object_detection_v11(left_scene)
-        detected_objects_forward = yolo_object_detection_v11(forward_scene)
-        detected_objects_right = yolo_object_detection_v11(right_scene)
-
-        detected_objects = current_objects
+        detected_objects_left, detected_objects_forward, detected_objects_right = yolo_object_detection_v11(scene_img_rgb)
         left_dir = ["Left", "Left-Up", "Left-Down"]
         right_dir = ["Right", "Right-Up", "Right-Down"]
         forward_dir = ["Forward", "Up", "Down"]
         if direction.value in left_dir:
             detected_objects = detected_objects_left
         elif direction.value in right_dir:
-            detected_objects = detected_objects_right
-        elif direction.value in forward_dir:
             detected_objects = detected_objects_forward
+        elif direction.value in forward_dir:
+            detected_objects = detected_objects_right
 
-        if detected_objects != current_objects:
+        if detected_objects != current_objects and len(detected_objects) > 0:
             current_objects = detected_objects
             object_descriptions = object_description_generator(detected_objects)
             text_to_speech(object_descriptions)       
