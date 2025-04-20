@@ -26,11 +26,11 @@ def yolo_object_detection_v11(img_rgb: np.ndarray) -> Dict[str, int]:
     :return: Dictionary of detected objects.
     """
     # Load a pre-trained YOLO11 model (e.g., YOLO11n)
-    model = YOLO('yolo11x.pt')
+    model = YOLO('yolo11m.pt')
 
     # Perform inference on an image
     results = model(img_rgb)
-    objects =  sorted(results[0].to_df()['name'].to_list()) if len(results[0]) > 0 else []
+    objects =  results[0].to_df()['name'].to_list() if len(results[0]) > 0 else []
     # Find frequencies of detected objects
     object_frequencies = {}
     for obj in objects:

@@ -18,8 +18,7 @@ def text_to_speech(text: str | List[str], voice_id=None) -> None:
         engine.setProperty('voice', voices[voice_id].id)
     
     if isinstance(text, list):
-        for t in text:
-            engine.say(t)
+        engine.say(" ".join(text))
     else:
         engine.say(text)
     engine.runAndWait()

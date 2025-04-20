@@ -76,11 +76,10 @@ def main():
         elif direction.value in forward_dir:
             detected_objects = detected_objects_forward
 
-        if detected_objects != current_objects and len(detected_objects) > 0:
+        if detected_objects != current_objects:
             current_objects = detected_objects
             object_descriptions = object_description_generator(detected_objects)
             text_to_speech(object_descriptions)       
-            print(object_descriptions)    
 
         # Haptics object warning loop
         if direction.value not in left_dir and len(detected_objects_left) > 0:
@@ -97,6 +96,8 @@ def main():
         # Exit the loop when 'q' is pressed
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+        
+        
 
     # Release the camera and close all OpenCV windows
     scene_camera.release()
