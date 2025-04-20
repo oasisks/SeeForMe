@@ -2,7 +2,7 @@ import serial
 import time
 
 # Set up the serial connection
-ser = serial.Serial('COM5', 9600, timeout=1)  # Change to your port (e.g., "/dev/ttyUSB0" for Linux)
+ser = serial.Serial('COM3', 9600, timeout=1)  # Change to your port (e.g., "/dev/ttyUSB0" for Linux)
 time.sleep(2)
 
 if ser.is_open:
@@ -23,9 +23,12 @@ while True:
         # Control motor PWM based on button state
         if "STRONG" in button_state and not power == 2:
             power = 2
-            ser.write(b'150\n')  # Send PWM value to Arduino to turn the motor at full speed
+            ser.write(b'POWER: 100\n')  # Send PWM value to Arduino to turn the motor at full speed
         elif "WEAK" in button_state and not power == 1:
             power = 1
-            ser.write(b'50\n')  # Send PWM value to Arduino to turn the motor at lower speed
+            ser.write(b'POWER: 50\n')  # Send PWM value to Arduino to turn the motor at lower speed
+        elif "NONE" in button_state and not power == 0:
+            power = 0
+            ser.write(b'POWER: 0\n')
     
     time.sleep(0.1)  # Delay to avoid constantly querying the serial port
