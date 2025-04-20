@@ -26,7 +26,7 @@ def yolo_object_detection_v11(img_rgb: np.ndarray) -> Dict[str, int]:
     :return: Dictionary of detected objects.
     """
     # Load a pre-trained YOLO11 model (e.g., YOLO11n)
-    model = YOLO('yolo11m.pt')
+    model = YOLO('yolo11x.pt')
 
     # Perform inference on an image
     results = model(img_rgb)

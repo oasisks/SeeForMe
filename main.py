@@ -66,11 +66,14 @@ def main():
         detected_objects_right = yolo_object_detection_v11(right_scene)
 
         detected_objects = current_objects
-        if direction.value == "Left":
+        left_dir = ["Left", "Left-Up", "Left-Down"]
+        right_dir = ["Right", "Right-Up", "Right-Down"]
+        forward_dir = ["Forward", "Up", "Down"]
+        if direction.value in left_dir:
             detected_objects = detected_objects_left
-        elif direction.value == "Right":
+        elif direction.value in right_dir:
             detected_objects = detected_objects_right
-        elif direction.value == "Forward":
+        elif direction.value in forward_dir:
             detected_objects = detected_objects_forward
 
         if detected_objects != current_objects and len(detected_objects) > 0:
@@ -80,11 +83,11 @@ def main():
             print(object_descriptions)    
 
         # Haptics object warning loop
-        if direction.value != "Left" and len(detected_objects_left) > 0:
+        if direction.value not in left_dir and len(detected_objects_left) > 0:
             ser.write(b'WARN: LEFT\n')
-        if direction.value != "Right" and len(detected_objects_right) > 0:
+        if direction.value not in right_dir and len(detected_objects_right) > 0:
             ser.write(b'WARN: RIGHT\n')
-        if direction.value != "Forward" and len(detected_objects_forward) > 0:
+        if direction.value not in forward_dir and len(detected_objects_forward) > 0:
             ser.write(b'WARN: FORWARD\n')
        
         # Display the resulting frame

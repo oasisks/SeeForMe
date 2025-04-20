@@ -175,3 +175,5 @@ cython_debug/
 
 passwords.py
 .jpg
+
+YOLO_test/yolo11x.pt
