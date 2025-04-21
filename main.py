@@ -16,7 +16,8 @@ def main():
     face_tracker = Tracker(-30, 30, 165)
 
     # Initialize the serial port (haptics)
-    ser = serial.Serial('COM3', 9600, timeout=1)  # Change to your port (e.g., "/dev/ttyUSB0" for Linux)
+    ser = serial.Serial('/dev/tty.usbmodem1101', 9600, timeout=1)  # Change to your port (e.g., "/dev/ttyUSB0" for Linux)
+    # ser = serial.Serial('COM3', 9600, timeout=1)  # Change to your port (e.g., "/dev/ttyUSB0" for Linux)
     time.sleep(2)
 
     if ser.is_open:
@@ -56,39 +57,52 @@ def main():
         
         # Perform object detection on the scene camera frame
         scene_img_rgb = cv2.cvtColor(scene_camera_frame, cv2.COLOR_BGR2RGB)
-        detected_objects_left, detected_objects_forward, detected_objects_right = yolo_object_detection_v11(scene_img_rgb)
+        detected_objects_dict = yolo_object_detection_v11(scene_img_rgb)
+        detected_objects_left = detected_objects_dict["left"]["objects"]
+        detected_objects_forward = detected_objects_dict["forward"]["objects"]
+        detected_objects_right = detected_objects_dict["right"]["objects"]
+
         left_dir = ["Left", "Left-Up", "Left-Down"]
         right_dir = ["Right", "Right-Up", "Right-Down"]
         forward_dir = ["Forward", "Up", "Down"]
         if direction.value in left_dir:
             detected_objects = detected_objects_left
+            bounding_boxes = detected_objects_dict["left"]["bounding_boxes"]
         elif direction.value in right_dir:
-            detected_objects = detected_objects_forward
-        elif direction.value in forward_dir:
             detected_objects = detected_objects_right
+            bounding_boxes = detected_objects_dict["right"]["bounding_boxes"]
+        elif direction.value in forward_dir:
+            detected_objects = detected_objects_forward
+            bounding_boxes = detected_objects_dict["forward"]["bounding_boxes"]
 
         if detected_objects != current_objects:
             current_objects = detected_objects
             object_descriptions = object_description_generator(detected_objects)
+            # draw bounding boxes and labels on the scene camera frame
+            for box in bounding_boxes:
+                x1, y1, x2, y2 = map(int, box)
+                # Draw a rectangle (bounding box)
+                cv2.rectangle(scene_camera_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
             text_to_speech(object_descriptions)       
 
         # Haptics object warning loop
-        if direction.value != "Left" and len(detected_objects_left) > 0:
+        if direction.value not in left_dir and "sports ball" in detected_objects_left:
             ser.write(b'WARN: LEFT ON\n')
-        elif direction.value == "Left" or len(detected_objects_left) == 0:
+        elif direction.value in left_dir or "sports ball" not in detected_objects_left:
             ser.write(b'WARN: LEFT OFF\n')
 
-        if direction.value != "Forward" and len(detected_objects_forward) > 0:
+        if direction.value not in forward_dir and "sports ball" in detected_objects_forward:
             ser.write(b'WARN: FORWARD ON\n')
-        elif direction.value == "Forward" or len(detected_objects_forward) == 0:
+        elif direction.value in forward_dir or "sports ball" not in detected_objects_forward:
             ser.write(b'WARN: FORWARD OFF\n')
 
-        if direction.value != "Right" and len(detected_objects_right) > 0:
+        if direction.value not in right_dir  and "sports ball" in detected_objects_right:
             ser.write(b'WARN: RIGHT ON\n')
-        elif direction.value == "Right" or len(detected_objects_right) == 0:
+        elif direction.value in right_dir or "sports ball" not in detected_objects_right:
             ser.write(b'WARN: RIGHT OFF\n')
 
-        # Display the resulting frame
+        # # Display the resulting frame
         cv2.imshow('Camo iPhone Camera', scene_camera_frame)
         cv2.imshow('User Camera', user_camera_frame)
 

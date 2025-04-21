@@ -2,12 +2,15 @@ from ultralytics import YOLO
 from typing import List, Dict, Tuple
 import numpy as np
 threshold = .5
-def filter_results(results) -> List[List[str]]:
+def filter_results(results) -> Dict[str, Dict[str, List|Dict]]:
     """
     Filter the results of the YOLO model to separate detected objects into left, forward, and right categories.
     :param results: Results object from YOLO model.
     """
-    left, forward, right = [], [], []
+    # left, forward, right = [], [], []
+    results_dict = {"left": {"objects": [], "bounding_boxes": []},
+                "forward": {"objects": [], "bounding_boxes": []},
+                "right": {"objects": [], "bounding_boxes": []}}
     for result in results:
         if len(result.boxes) == 0:
             continue
@@ -16,18 +19,24 @@ def filter_results(results) -> List[List[str]]:
         coords = boxes.xywhn  # normalized xywh (x_center, y_center, width, height)
         probs = boxes.conf  # Bounding box coordinates xyxy (Top-left x, Top-left y, Bottom-right x, Bottom-right y)
         for prob, box, i in zip(probs, coords, range(len(objects))):
-            if prob < 0.5:
+            if threshold < 0.5:
                 continue
-
             x_center, y_center, width, height = box
             if x_center < 0.33:
-                left.append(objects[i])
+                results_dict["left"]["objects"].append(objects[i])
+                results_dict["left"]["bounding_boxes"].append(boxes.xyxy[i].tolist())
             elif x_center > 0.66:
-                right.append(objects[i])
+                results_dict["right"]["objects"].append(objects[i])
+                results_dict["right"]["bounding_boxes"].append(boxes.xyxy[i].tolist())
             else:
-                forward.append(objects[i])
-        
-    return left, forward, right
+                results_dict["forward"]["objects"].append(objects[i])
+                results_dict["forward"]["bounding_boxes"].append(boxes.xyxy[i].tolist())
+    # count the frequency of each detected object
+    results_dict["left"]["objects"] = count_objects(results_dict["left"]["objects"])
+    results_dict["forward"]["objects"] = count_objects(results_dict["forward"]["objects"])
+    results_dict["right"]["objects"] = count_objects(results_dict["right"]["objects"])
+
+    return results_dict
 
 def count_objects(objects: List[str]) -> Dict[str, int]:
     """
@@ -44,20 +53,20 @@ def count_objects(objects: List[str]) -> Dict[str, int]:
     return object_counts
 
 
-def yolo_object_detection_v11(img_rgb: np.ndarray) -> Tuple[Dict[str, int]]:
+def yolo_object_detection_v11(img_rgb: np.ndarray) -> Dict[str, Dict[str, List|Dict]]:
     """
     Perform object detection using YOLO11.
     :param img_rgb: RGB image as a numpy array.
-    :return: Tupe of left, forward, and right dictionary of detected objects.
+    :return: Dictionary of detected objects and their bounding boxes.
     """
     # Load a pre-trained YOLO11 model (e.g., YOLO11n)
     model = YOLO('yolo11m.pt')
 
     # Perform inference on an image
-    results = model(img_rgb)
-    left_objects, forward_objects, right_objects = filter_results(results)
+    results = model(img_rgb, verbose=False)
+    results_dict = filter_results(results)
 
-    return count_objects(left_objects), count_objects(forward_objects), count_objects(right_objects)
+    return results_dict
 
 def object_description_generator(detected_objects:  Dict[str, int]) -> List[str]:
     """
