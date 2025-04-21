@@ -67,19 +67,27 @@ def main():
         elif direction.value in forward_dir:
             detected_objects = detected_objects_right
 
-        if detected_objects != current_objects and len(detected_objects) > 0:
+        if detected_objects != current_objects:
             current_objects = detected_objects
             object_descriptions = object_description_generator(detected_objects)
             text_to_speech(object_descriptions)       
 
         # Haptics object warning loop
-        if direction.value not in left_dir and len(detected_objects_left) > 0:
-            ser.write(b'WARN: LEFT\n')
-        if direction.value not in right_dir and len(detected_objects_right) > 0:
-            ser.write(b'WARN: RIGHT\n')
-        if direction.value not in forward_dir and len(detected_objects_forward) > 0:
-            ser.write(b'WARN: FORWARD\n')
-       
+        if direction.value != "Left" and len(detected_objects_left) > 0:
+            ser.write(b'WARN: LEFT ON\n')
+        elif direction.value == "Left" or len(detected_objects_left) == 0:
+            ser.write(b'WARN: LEFT OFF\n')
+
+        if direction.value != "Forward" and len(detected_objects_forward) > 0:
+            ser.write(b'WARN: FORWARD ON\n')
+        elif direction.value == "Forward" or len(detected_objects_forward) == 0:
+            ser.write(b'WARN: FORWARD OFF\n')
+
+        if direction.value != "Right" and len(detected_objects_right) > 0:
+            ser.write(b'WARN: RIGHT ON\n')
+        elif direction.value == "Right" or len(detected_objects_right) == 0:
+            ser.write(b'WARN: RIGHT OFF\n')
+
         # Display the resulting frame
         cv2.imshow('Camo iPhone Camera', scene_camera_frame)
         cv2.imshow('User Camera', user_camera_frame)
