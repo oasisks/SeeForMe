@@ -2,6 +2,7 @@ from ultralytics import YOLO
 from typing import List, Dict, Tuple
 import numpy as np
 threshold = .5
+
 def filter_results(results) -> Dict[str, Dict[str, List|Dict]]:
     """
     Filter the results of the YOLO model to separate detected objects into left, forward, and right categories.
@@ -18,10 +19,12 @@ def filter_results(results) -> Dict[str, Dict[str, List|Dict]]:
         boxes = result.boxes  # Boxes object for bounding box outputs
         coords = boxes.xywhn  # normalized xywh (x_center, y_center, width, height)
         probs = boxes.conf  # Bounding box coordinates xyxy (Top-left x, Top-left y, Bottom-right x, Bottom-right y)
-        for prob, box, i in zip(probs, coords, range(len(objects))):
-            if threshold < 0.5:
+        for i in range(len(objects)):
+            prob = probs[i]
+            coord = coords[i]
+            if prob < threshold:
                 continue
-            x_center, y_center, width, height = box
+            x_center = coord[0]
             if x_center < 0.33:
                 results_dict["left"]["objects"].append(objects[i])
                 results_dict["left"]["bounding_boxes"].append(boxes.xyxy[i].tolist())
@@ -60,7 +63,7 @@ def yolo_object_detection_v11(img_rgb: np.ndarray) -> Dict[str, Dict[str, List|D
     :return: Dictionary of detected objects and their bounding boxes.
     """
     # Load a pre-trained YOLO11 model (e.g., YOLO11n)
-    model = YOLO('yolo11m.pt')
+    model = YOLO('yolo11x.pt')
 
     # Perform inference on an image
     results = model(img_rgb, verbose=False)
