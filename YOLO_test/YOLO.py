@@ -77,13 +77,11 @@ def object_description_generator(detected_objects:  Dict[str, int]) -> List[str]
     :param detected_objects: Dictionary of detected objects.
     :return: List of detected objects with descriptions.
     """
+    #### TODO: use a LLM or model to generate descriptions given {"object": "2", "object1": "removed 1", "object2": "added 1"}
     # Generate descriptions for each detected object
     object_descriptions = []
     for obj, freq in detected_objects.items():
-        if freq > 1:
-            description = f"There are {freq} {obj}s"
-        else:
-            description = f"There is a {obj}"
+        description = f"There is {freq} {obj}."
         object_descriptions.append(description)
 
     return object_descriptions if len(object_descriptions) > 0 else ["No objects detected"]
@@ -93,5 +91,7 @@ if __name__ == "__main__":
     image_path = "chairs.jpg"  # Replace with your image path
     detected_objects = yolo_object_detection_v11(image_path)
     print("Detected objects:", detected_objects)
+    object_descriptions = object_description_generator({"chair": "2", "table": "1"})
+    print("Object descriptions:", object_descriptions)
 
 

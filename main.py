@@ -13,6 +13,7 @@ user_camera_i = 0 # Index 0 is typically the built-in webcam
 def main():
     # Initialize the face tracker
     current_objects = None
+    history_objects = {"left": {}, "forward": {}, "right": {}}
     face_tracker = Tracker(-30, 30, 165)
 
     # Initialize the serial port (haptics)
@@ -27,8 +28,8 @@ def main():
     ser.flush()
 
     # Open the webcam feed from Camo (adjust the index if needed)
-    user_camera = cv2.VideoCapture(user_camera_i)  # Index 0 is typically the built-in webcam
-    scene_camera = cv2.VideoCapture(scene_camera_i)  # Index 1 is typically the Camo webcam, but this may vary
+    user_camera = cv2.VideoCapture(user_camera_i) # Index 0 is typically the built-in webcam
+    scene_camera = cv2.VideoCapture(scene_camera_i) # Index 1 is typically the Camo webcam, but this may vary
     while True:
         # Capture frame-by-frame
         ret, scene_camera_frame = scene_camera.read()
@@ -38,22 +39,22 @@ def main():
             print("Failed to capture video")
             break
         
-        # Draw the face mesh on the user camera frame
+        # Calculate the face direction
         user_img_rgb = cv2.cvtColor(user_camera_frame, cv2.COLOR_BGR2RGB)
         direction, pitch, yaw, roll = face_tracker.predict_face_direction(user_img_rgb)
-        mp.solutions.drawing_utils.draw_landmarks(
-                image=user_camera_frame,
-                landmark_list=face_tracker._landmarks,
-                connections=mp.solutions.face_mesh.FACEMESH_TESSELATION,
-                landmark_drawing_spec=None,
-                connection_drawing_spec=face_tracker._mesh_spec
-            )
-       
-        text = f"Pitch: {pitch:.1f}, Yaw: {yaw:.1f}, Roll: {roll:.1f}"
-        cv2.putText(user_camera_frame, text, (20, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        cv2.putText(user_camera_frame, direction.value, (20, 60),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 255), 2)
+        ## Draw the face mesh on the user camera frame
+        # mp.solutions.drawing_utils.draw_landmarks(
+        #         image=user_camera_frame,
+        #         landmark_list=face_tracker._landmarks,
+        #         connections=mp.solutions.face_mesh.FACEMESH_TESSELATION,
+        #         landmark_drawing_spec=None,
+        #         connection_drawing_spec=face_tracker._mesh_spec
+        #     )
+        # text = f"Pitch: {pitch:.1f}, Yaw: {yaw:.1f}, Roll: {roll:.1f}"
+        # cv2.putText(user_camera_frame, text, (20, 30),
+        #             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        # cv2.putText(user_camera_frame, direction.value, (20, 60),
+        #             cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 255), 2)
         
         # Perform object detection on the scene camera frame
         scene_img_rgb = cv2.cvtColor(scene_camera_frame, cv2.COLOR_BGR2RGB)
@@ -75,14 +76,34 @@ def main():
             detected_objects = detected_objects_forward
             bounding_boxes = detected_objects_dict["forward"]["bounding_boxes"]
 
-        if detected_objects != current_objects:
-            current_objects = detected_objects
-            object_descriptions = object_description_generator(detected_objects)
-            # draw bounding boxes and labels on the scene camera frame
-            for box in bounding_boxes:
-                x1, y1, x2, y2 = map(int, box)
-                # Draw a rectangle (bounding box)
-                cv2.rectangle(scene_camera_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        if detected_objects != current_objects: # detected objects have changed
+            current_objects = detected_objects # dict of objects with their frequency
+            objects_to_announce = detected_objects.copy() # dict of objects with their frequency but as strings
+            if not current_objects:
+                history_objects[direction.value] = {} # clear history
+            else:
+                # Update and check history 
+                for obj, count in current_objects.items():
+                    if obj in history_objects[direction.value]: # already announced before
+                        if history_objects[direction.value][obj] == count: # nothing changed, so no need to announce
+                            del objects_to_announce[obj]
+                        elif history_objects[direction.value][obj] < count: # new object detected
+                            objects_to_announce[obj] = f"added {count - history_objects[direction.value][obj]}" # only announce the new object
+                            history_objects[direction.value][obj] = count
+                        elif history_objects[direction.value][obj] > count: # object disappeared
+                            objects_to_announce[obj] = f"removed {history_objects[direction.value][obj] - count}" # only announce the new object
+                            history_objects[direction.value][obj] = count
+                    else:
+                        history_objects[direction.value][obj] = count # new object detected
+                        objects_to_announce[obj] = f"{count}"
+
+            object_descriptions = object_description_generator(objects_to_announce)
+
+            ## draw bounding boxes and labels on the scene camera frame
+            # for box in bounding_boxes:
+            #     x1, y1, x2, y2 = map(int, box)
+            #     # Draw a rectangle (bounding box)
+            #     cv2.rectangle(scene_camera_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
             text_to_speech(object_descriptions)       
 
