@@ -38,16 +38,16 @@ class LANDMARK_IDS(Enum):
 
 
 class FACE_DIRECTION(Enum):
-    FORWARD = "Forward"
-    LEFT = "Left"
-    RIGHT = "Right"
-    DOWN = "Down"
-    UP = "Up"
-    LEFT_UP = "Left-Up"
-    LEFT_DOWN = "Left-Down"
-    RIGHT_UP = "Right-Up"
-    RIGHT_DOWN = "Right-Down"
-    INDETERMINATE = "Indeterminate"
+    FORWARD = "forward"
+    LEFT = "left"
+    RIGHT = "right"
+    DOWN = "down"
+    UP = "up"
+    LEFT_UP = "left-up"
+    LEFT_DOWN = "left-down"
+    RIGHT_UP = "right-up"
+    RIGHT_DOWN = "right-down"
+    INDETERMINATE = "indeterminate"
 
 
 class Tracker:
