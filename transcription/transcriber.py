@@ -10,6 +10,7 @@ from PIL import Image
 from YOLO_test import YOLO
 import cv2
 import pprint
+import multiprocessing as mp
 
 load_dotenv()
 
@@ -77,140 +78,13 @@ def whisper_process(queue, model: str = "base", mic_index: int = 0, pause_thresh
         while True:
             try:
                 audio = r.listen(source)
-                text = r.recognize_faster_whisper(audio, language="en", model=model)
-                queue.put(("whisper", text.lstrip(" ").rstrip(" ")))
-
+                text = r.recognize_faster_whisper(audio, language="en", model=model).lstrip(" ").rstrip(" ")
+                queue.put(("whisper", text))
+                print(f"The text generated: {text}")
             except sr.UnknownValueError:
                 queue.put(("whisper", "COULDN'T UNDERSTAND"))
             except sr.RequestError as e:
                 queue.put(("whisper", "UNKNOWN ERROR"))
-
-
-def gemini_user_response(message_history: List[Dict[str, str]], image: np.ndarray, history_window: int = 10, model_name: str = "gemini-2.0-flash"):
-    """
-    Generates a response base on the message history. You can give it an arbitrary size message_history, but
-    it will only look at the last 'history_window' history elements.
-
-    For optimization, it is essential to truncate message_history for memory performance
-
-    An example of a message_history:
-    message_history = [
-        {
-            "agent": "user",
-            "message": "What is in front of me?",
-            "objects": {
-                "left": {"chair": 1},
-                "right": {"table": 1},
-                "forward": {"mouse": 1}
-            }
-        },
-        {
-            "agent": "system",
-            "message": "There is a mouse right in front of you"
-        }
-    ]
-    :param message_history: a list of message histories
-    :param history_window: the window in which the model looks at the last "history_window"
-                            elements within the message history
-    :param model_name: the name of the model
-    :param image: an rgb image with 3 channels
-    :return: it will return a new message_history
-    """
-    relevant_history = message_history[-history_window:]
-    prompt = """
-    Example 1:
-    Image: An image of a brown chair on the left, a white table in the center, and a black mouse in the center.
-    Message History: [
-        {
-            "agent": "user",
-            "message": "What is in front of me?",
-            "objects": {
-                "left": {"chair": 1},
-                "right": {"table": 1},
-                "forward": {"mouse": 1}
-            }
-        }
-    ]
-    Output: "There is a mouse right in front of you."
-    Example 2:
-    Image: An image of a brown chair on the left, a white table in the center, and a black mouse in the center.
-    Message History: [
-        {
-            "agent": "user",
-            "message": "What is in front of me?",
-            "objects": {
-                "left": {"chair": 1},
-                "right": {"table": 1},
-                "forward": {"mouse": 1}
-            }
-        },
-        {
-            "agent": "system",
-            "message": "There is a mouse right in front of you."
-        },
-        {
-            "agent": "user",
-            "message": "What is the color of the mouse?",
-            "objects": {
-                "left": {"chair": 1},
-                "right": {"table": 1},
-                "forward": {"mouse": 1}
-            }
-        }
-    ]
-    Output: "The color of the mouse is black."
-    Example 3:
-    Image: "An image of an empty table"
-    Message History: [
-        {
-            "agent": "user",
-            "message": "What is in front of me?",
-            "objects": {
-                "left": {},
-                "right": {},
-                "forward": {}
-            }
-        }
-    ]
-    Output: "There is no object in front of you."
-    
-    """
-
-    query = f"""
-    Now, for the given image and the message history, generate an output and return only the output:
-    {relevant_history}
-    """
-
-    img = Image.fromarray(image)
-    response = client.models.generate_content(
-        model=model_name,
-        contents=[prompt + query, img]
-    )
-
-    relevant_history.append({
-        "agent": "system",
-        "message": response.text
-    })
-    return relevant_history
-
-
-def history_entry_generator(message, yolo_objects) -> dict:
-    """
-    Returns a history entry for the user
-    :param message: the query message
-    :param yolo_objects: the yolo objects
-    :return: a dictionary of the history entry
-    """
-
-    return {
-        "agent": "user",
-        "message": message,
-        "objects": {
-            "left": yolo_objects["left"]["objects"],
-            "right": yolo_objects["right"]["objects"],
-            "forward": yolo_objects["forward"]["objects"]
-        }
-    }
 
 
 def background_listening(callback: Callable, model: str = "base", device_index: int = 0, pause_threshold: float = 0.8) -> Callable:
@@ -405,17 +279,26 @@ if __name__ == '__main__':
     print("Initiating listening")
     # text = active_listening(model="base", device_index=1)
     # print(text)
-    image_path = "../table.jpeg"
-    image = cv2.imread(image_path)
-    detected_objects = YOLO.yolo_object_detection_v11(image_path)
+    # image_path = "../table.jpeg"
+    # image = cv2.imread(image_path)
+    # detected_objects = YOLO.yolo_object_detection_v11(image_path)
+    #
+    # transcriber = Transcriber()
+    # transcriber.push_user_query("What is to the left of me?", detected_objects)
+    # pprint.pprint(transcriber.history)
+    # response = transcriber.get_gemini_user_response(image)
+    #
+    # print(response)
+    # pprint.pprint(transcriber.history)
 
-    transcriber = Transcriber()
-    transcriber.push_user_query("What is to the left of me?", detected_objects)
-    pprint.pprint(transcriber.history)
-    response = transcriber.get_gemini_user_response(image)
+    mp.set_start_method("spawn")
+    result_q = mp.Queue()
 
-    print(response)
-    pprint.pprint(transcriber.history)
+    model = "base"
+    mic_index = 1
+    pause_threshold = 0.8
+    p1 = mp.Process(target=whisper_process, args=(result_q, model, mic_index, pause_threshold))
+    p1.start()
     # print(detected_objects)
     # history_entry = history_entry_generator("What is to the left of me?", detected_objects)
     # message_history = [history_entry]
