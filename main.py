@@ -80,6 +80,8 @@ def user_camera_process(cam_index, queue):
     cv2.destroyWindow(window_name)
 
 
+
+
 def main():
     # Initialize the face tracker
     current_objects = None
