@@ -1,5 +1,19 @@
+import os
+
+import numpy as np
 import speech_recognition as sr
+from google import genai
 from typing import Callable
+from typing import List, Dict
+from dotenv import load_dotenv
+from PIL import Image
+from YOLO_test import YOLO
+import cv2
+import pprint
+
+load_dotenv()
+
+client = genai.Client(api_key=os.getenv("GEMINI_KEY"))
 
 
 def active_listening(model: str = "base", device_index: int = 0, pause_threshold: float = 0.8) -> str:
@@ -71,6 +85,134 @@ def whisper_process(queue, model: str = "base", mic_index: int = 0, pause_thresh
             except sr.RequestError as e:
                 queue.put(("whisper", "UNKNOWN ERROR"))
 
+
+def gemini_user_response(message_history: List[Dict[str, str]], image: np.ndarray, history_window: int = 10, model_name: str = "gemini-2.0-flash"):
+    """
+    Generates a response base on the message history. You can give it an arbitrary size message_history, but
+    it will only look at the last 'history_window' history elements.
+
+    For optimization, it is essential to truncate message_history for memory performance
+
+    An example of a message_history:
+    message_history = [
+        {
+            "agent": "user",
+            "message": "What is in front of me?",
+            "objects": {
+                "left": {"chair": 1},
+                "right": {"table": 1},
+                "forward": {"mouse": 1}
+            }
+        },
+        {
+            "agent": "system",
+            "message": "There is a mouse right in front of you"
+        }
+    ]
+    :param message_history: a list of message histories
+    :param history_window: the window in which the model looks at the last "history_window"
+                            elements within the message history
+    :param model_name: the name of the model
+    :param image: an rgb image with 3 channels
+    :return: it will return a new message_history
+    """
+    relevant_history = message_history[-history_window:]
+    prompt = """
+    Example 1:
+    Image: An image of a brown chair on the left, a white table in the center, and a black mouse in the center.
+    Message History: [
+        {
+            "agent": "user",
+            "message": "What is in front of me?",
+            "objects": {
+                "left": {"chair": 1},
+                "right": {"table": 1},
+                "forward": {"mouse": 1}
+            }
+        }
+    ]
+    Output: "There is a mouse right in front of you."
+    Example 2:
+    Image: An image of a brown chair on the left, a white table in the center, and a black mouse in the center.
+    Message History: [
+        {
+            "agent": "user",
+            "message": "What is in front of me?",
+            "objects": {
+                "left": {"chair": 1},
+                "right": {"table": 1},
+                "forward": {"mouse": 1}
+            }
+        },
+        {
+            "agent": "system",
+            "message": "There is a mouse right in front of you."
+        },
+        {
+            "agent": "user",
+            "message": "What is the color of the mouse?",
+            "objects": {
+                "left": {"chair": 1},
+                "right": {"table": 1},
+                "forward": {"mouse": 1}
+            }
+        }
+    ]
+    Output: "The color of the mouse is black."
+    Example 3:
+    Image: "An image of an empty table"
+    Message History: [
+        {
+            "agent": "user",
+            "message": "What is in front of me?",
+            "objects": {
+                "left": {},
+                "right": {},
+                "forward": {}
+            }
+        }
+    ]
+    Output: "There is no object in front of you."
+    
+    """
+
+    query = f"""
+    Now, for the given image and the message history, generate an output and return only the output:
+    {relevant_history}
+    """
+
+    img = Image.fromarray(image)
+    response = client.models.generate_content(
+        model=model_name,
+        contents=[prompt + query, img]
+    )
+
+    relevant_history.append({
+        "agent": "system",
+        "message": response.text
+    })
+    return relevant_history
+
+
+def history_entry_generator(message, yolo_objects) -> dict:
+    """
+    Returns a history entry for the user
+    :param message: the query message
+    :param yolo_objects: the yolo objects
+    :return: a dictionary of the history entry
+    """
+
+    return {
+        "agent": "user",
+        "message": message,
+        "objects": {
+            "left": yolo_objects["left"]["objects"],
+            "right": yolo_objects["right"]["objects"],
+            "forward": yolo_objects["forward"]["objects"]
+        }
+    }
+
+
 def background_listening(callback: Callable, model: str = "base", device_index: int = 0, pause_threshold: float = 0.8) -> Callable:
     """
     Listens to the audio in a separate thread. The main thread will still execute
@@ -99,5 +241,13 @@ def background_listening(callback: Callable, model: str = "base", device_index: 
 
 if __name__ == '__main__':
     print("Initiating listening")
-    text = active_listening(model="base", device_index=1)
-    print(text)
+    # text = active_listening(model="base", device_index=1)
+    # print(text)
+    image_path = "../table.jpeg"
+    image = cv2.imread(image_path)
+    detected_objects = YOLO.yolo_object_detection_v11(image_path)
+
+    history_entry = history_entry_generator("What is to the left of me?", detected_objects)
+    message_history = [history_entry]
+    new_history = gemini_user_response(message_history, image)
+    pprint.pprint(new_history)
