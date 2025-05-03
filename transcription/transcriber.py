@@ -239,6 +239,168 @@ def background_listening(callback: Callable, model: str = "base", device_index: 
     return stop
 
 
+class Transcriber:
+    """
+    >>> transcriber = Transcriber()
+    >>> yolo_object = {
+    ...     'left': {
+    ...         'objects': {'person': 1},
+    ...         'bounding_boxes': [[0.17, 6.64, 85.15, 173.78]]
+    ...     },
+    ...     'forward': {
+    ...         'objects': {'bottle': 1, 'dining table': 1},
+    ...         'bounding_boxes': [[107.25, 68.64, 115.07, 96.16],
+    ...                            [63.68, 69.62, 230.90, 187.31]]
+    ...     },
+    ...     'right': {
+    ...         'objects': {'chair': 1},
+    ...         'bounding_boxes': [[188.56, 85.65, 250.09, 179.17]]
+    ...     }
+    ... }
+    >>> transcriber.push_user_query("What is in front of me?", yolo_object)
+    >>> print(transcriber.history)
+    [{'agent': 'user', 'message': 'What is in front of me?', 'objects': {'left': {'person': 1}, 'right': {'chair': 1}, 'forward': {'bottle': 1, 'dining table': 1}}}]
+    >>> # won't call it here but after pushing a query, just call the gemini response and pass in the image rgb
+    >>> # it will update the transcriber history, and also return a response back
+    >>> # response = transcriber.get_gemini_user_response()
+    """
+    def __init__(self, model_name: str = "gemini-2.0-flash", history_window: int = 10):
+        self._history = []
+        self._model_name = model_name
+        self._history_window = history_window
+
+    def push_user_query(self, message: str, yolo_objects):
+        """
+        Pushes a message entry into the transcribers current history
+        :param message: the query message
+        :param yolo_objects: the yolo objects
+        :return: none
+        """
+        entry = {
+            "agent": "user",
+            "message": message,
+            "objects": {
+                "left": yolo_objects["left"]["objects"],
+                "right": yolo_objects["right"]["objects"],
+                "forward": yolo_objects["forward"]["objects"]
+            }
+        }
+        self._history = self._history[-(self._history_window - 1):]
+        self._history.append(entry)
+
+    def get_gemini_user_response(self, image: np.ndarray) -> str:
+        """
+        Generates a response base off the image and the current message history
+
+        An example of a message_history:
+        message_history = [
+            {
+                "agent": "user",
+                "message": "What is in front of me?",
+                "objects": {
+                    "left": {"chair": 1},
+                    "right": {"table": 1},
+                    "forward": {"mouse": 1}
+                }
+            },
+            {
+                "agent": "system",
+                "message": "There is a mouse right in front of you"
+            }
+        ]
+
+        It WILL mutate the history by adding an entry with the system response
+
+
+        :param image: a rgb image with 3 channels
+        :return: updates the current history and also returns the system response
+        """
+
+        prompt = """
+        Example 1:
+        Image: An image of a brown chair on the left, a white table in the center, and a black mouse in the center.
+        Message History: [
+            {
+                "agent": "user",
+                "message": "What is in front of me?",
+                "objects": {
+                    "left": {"chair": 1},
+                    "right": {"table": 1},
+                    "forward": {"mouse": 1}
+                }
+            }
+        ]
+        Output: "There is a mouse right in front of you."
+        Example 2:
+        Image: An image of a brown chair on the left, a white table in the center, and a black mouse in the center.
+        Message History: [
+            {
+                "agent": "user",
+                "message": "What is in front of me?",
+                "objects": {
+                    "left": {"chair": 1},
+                    "right": {"table": 1},
+                    "forward": {"mouse": 1}
+                }
+            },
+            {
+                "agent": "system",
+                "message": "There is a mouse right in front of you."
+            },
+            {
+                "agent": "user",
+                "message": "What is the color of the mouse?",
+                "objects": {
+                    "left": {"chair": 1},
+                    "right": {"table": 1},
+                    "forward": {"mouse": 1}
+                }
+            }
+        ]
+        Output: "The color of the mouse is black."
+        Example 3:
+        Image: "An image of an empty table"
+        Message History: [
+            {
+                "agent": "user",
+                "message": "What is in front of me?",
+                "objects": {
+                    "left": {},
+                    "right": {},
+                    "forward": {}
+                }
+            }
+        ]
+        Output: "There is no object in front of you."
+
+        """
+
+        query = f"""
+        Now, for the given image and the message history, generate an output and return only the output:
+        {self._history}
+        """
+
+        img = Image.fromarray(image)
+        response = client.models.generate_content(
+            model=self._model_name,
+            contents=[prompt + query, img]
+        )
+
+        response_text = response.text.strip("\n")
+        self._history.append({
+            "agent": "system",
+            "message": response_text
+        })
+
+        self._history = self._history[-self._history_window:]
+
+        return response_text
+
+    @property
+    def history(self):
+        return self._history
+
+
 if __name__ == '__main__':
     print("Initiating listening")
     # text = active_listening(model="base", device_index=1)
@@ -247,7 +409,15 @@ if __name__ == '__main__':
     image = cv2.imread(image_path)
     detected_objects = YOLO.yolo_object_detection_v11(image_path)
 
-    history_entry = history_entry_generator("What is to the left of me?", detected_objects)
-    message_history = [history_entry]
-    new_history = gemini_user_response(message_history, image)
-    pprint.pprint(new_history)
+    transcriber = Transcriber()
+    transcriber.push_user_query("What is to the left of me?", detected_objects)
+    pprint.pprint(transcriber.history)
+    response = transcriber.get_gemini_user_response(image)
+
+    print(response)
+    pprint.pprint(transcriber.history)
+    # print(detected_objects)
+    # history_entry = history_entry_generator("What is to the left of me?", detected_objects)
+    # message_history = [history_entry]
+    # new_history = gemini_user_response(message_history, image)
+    # pprint.pprint(new_history)
