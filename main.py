@@ -2,6 +2,7 @@ import face_tracker.tracking
 from face_tracker.tracking import Tracker
 from YOLO_test.YOLO import yolo_object_detection_v11, object_description_generator
 from audio_output import text_to_speech
+from transcription.transcriber import whisper_process
 import cv2
 import serial
 import multiprocessing as mp
@@ -78,8 +79,6 @@ def user_camera_process(cam_index, queue):
 
     capture.release()
     cv2.destroyWindow(window_name)
-
-
 
 
 def main():
