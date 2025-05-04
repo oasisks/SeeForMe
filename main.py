@@ -7,6 +7,7 @@ import cv2
 import serial
 import multiprocessing as mp
 import time
+from gemini_api import gemini_image_description
 
 # Global variables
 scene_camera_i = 1  # Index 1 is typically the Camo webcam, but this may vary
@@ -35,7 +36,7 @@ def scene_camera_process(cam_index, queue):
 
         img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         objs = yolo_object_detection_v11(img_rgb)
-        queue.put(("scene", objs))
+        queue.put(("scene", (objs, img_rgb)))
 
         cv2.imshow(window_name, frame)
 
@@ -84,7 +85,8 @@ def user_camera_process(cam_index, queue):
 def main():
     # Initialize the face tracker
     current_objects = None
-    history_objects = {"left": {}, "forward": {}, "right": {}}
+    history_objects = {"left": None, "forward": None, "right": None}
+    ## Until the system announces any object, the direciton is None: after the first announcement, the direction is set to a dictionary
 
     # Initialize the serial port (haptics)
     # ser = serial.Serial('/dev/tty.usbmodem1101', 9600,
@@ -114,7 +116,7 @@ def main():
         who, data = result_q.get()
 
         if who == "scene":
-            detected_objects_dict = data
+            detected_objects_dict, scene_image_rgb = data
         else:
             direction = data
         print(history_objects)
@@ -127,48 +129,71 @@ def main():
             left_dir = ["left", "left-up", "left-down"]
             right_dir = ["right", "right-up", "right-down"]
             forward_dir = ["forward", "up", "down"]
+            current_direction = None
             if direction.value in left_dir:
                 detected_objects = detected_objects_left
                 bounding_boxes = detected_objects_dict["left"]["bounding_boxes"]
+                current_direction = "left"
             elif direction.value in right_dir:
                 detected_objects = detected_objects_right
                 bounding_boxes = detected_objects_dict["right"]["bounding_boxes"]
+                current_direction = "right"
             elif direction.value in forward_dir:
                 detected_objects = detected_objects_forward
                 bounding_boxes = detected_objects_dict["forward"]["bounding_boxes"]
+                current_direction = "forward"
 
+            ##### CHECK FOR OBJECTS DETECTED and GENERATE THE CORRECT DESCRIPTION #####
+            # 1st announcement for each direction: the objects are announced or "no objects detected"
+            # 2nd announcement for each direction: the objects are announced or "no changes detected"
             if detected_objects != current_objects:  # detected objects have changed
                 current_objects = detected_objects  # dict of objects with their frequency
-                objects_to_announce = detected_objects.copy()  # dict of objects with their frequency but as strings
-                if not current_objects:
-                    history_objects[direction.value] = {}  # clear history
+                objects_to_announce = detected_objects.copy()
+
+                if not current_objects: # No objects detected, clear history or start fresh
+                    if history_objects[current_direction] is None:
+                        objects_to_announce = None # In this case, we want to announce "no objects detected"
+                        history_objects[current_direction] = {}  # start fresh so that we can detect if there's a change for next time
+                    else: # announce the objects that were removed or no change detected 
+                        objects_to_announce = {k:f"removed {v}" for k, v in history_objects[current_direction].items()}
+                        history_objects[current_direction] = {}  # clear history
                 else:
                     # Update and check history
                     for obj, count in current_objects.items():
-                        if obj in history_objects[direction.value]:  # already announced before
-                            if history_objects[direction.value][
+                        if history_objects[current_direction] is not None and obj in history_objects[current_direction]:  # object already announced before
+                            if history_objects[current_direction][
                                 obj] == count:  # nothing changed, so no need to announce
                                 del objects_to_announce[obj]
-                            elif history_objects[direction.value][obj] < count:  # new object detected
+                            elif history_objects[current_direction][obj] < count:  # new object detected
                                 objects_to_announce[
-                                    obj] = f"added {count - history_objects[direction.value][obj]}"  # only announce the new object
-                                history_objects[direction.value][obj] = count
-                            elif history_objects[direction.value][obj] > count:  # object disappeared
+                                    obj] = f"added {count - history_objects[current_direction][obj]}"  # only announce the new object
+                                history_objects[current_direction][obj] = count
+                            elif history_objects[current_direction][obj] > count:  # object disappeared
                                 objects_to_announce[
-                                    obj] = f"removed {history_objects[direction.value][obj] - count}"  # only announce the new object
-                                history_objects[direction.value][obj] = count
+                                    obj] = f"removed {history_objects[current_direction][obj] - count}"  # only announce the new object
+                                history_objects[current_direction][obj] = count
                         else:
-                            history_objects[direction.value][obj] = count  # new object detected
+                            if history_objects[current_direction] is None:
+                                history_objects[current_direction] = {}
+                            history_objects[current_direction][obj] = count  # new object detected
                             objects_to_announce[obj] = f"{count}"
 
-                object_descriptions = object_description_generator(objects_to_announce)
+                print(f"Detected objects: {objects_to_announce}")
+                if current_direction == "left":
+                    current_img = scene_image_rgb[:scene_image_rgb.shape[0]//3, :, :]
+                elif current_direction == "right":
+                    current_img = scene_image_rgb[2 * scene_image_rgb.shape[0]//3:, :, :]
+                else:
+                    current_img = scene_image_rgb[scene_image_rgb.shape[0]//3:2*scene_image_rgb.shape[0]//3, :, :]
 
+                # img of the direction, dict of objects with their frequency but as strings
+                object_descriptions = gemini_image_description(current_img, objects_to_announce)
                 ## draw bounding boxes and labels on the scene camera frame
                 # for box in bounding_boxes:
                 #     x1, y1, x2, y2 = map(int, box)
                 #     # Draw a rectangle (bounding box)
                 #     cv2.rectangle(scene_camera_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-
+            
                 text_to_speech(object_descriptions)
 
             # Haptics object warning loop
