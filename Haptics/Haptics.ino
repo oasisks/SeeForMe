@@ -19,21 +19,33 @@ void loop() {
 
       if (input.startsWith("LEFT")) {
         dir = LEFT;
+        input = input.substring(5);
       } else if (input.startsWith("FORWARD")) {
         dir = FORWARD;
+        input = input.substring(8);
       } else if (input.startsWith("RIGHT")) {
         dir = RIGHT;
+        input = input.substring(6);
       } else {
         return;
       }
 
-      if (input.endsWith("ON")) {
-        digitalWrite(dir, HIGH);
-      } else if (input.endsWith("OFF")) {
-        digitalWrite(dir, LOW);
-      } else {
-        return;
-      } 
+      int pwmValue = input.toInt();  // Skips "TEST " and converts "500"
+      Serial.print("pwmValue: ");
+      Serial.println(pwmValue);
+      if (pwmValue >= 0 && pwmValue <= 255) {
+        analogWrite(dir, pwmValue);  // Apply PWM to control motor speed
+        Serial.print("Motor PWM set to: ");
+        // Serial.println(pwmValue);
+      }
+
+      // if (input.endsWith("ON")) {
+      //   digitalWrite(dir, HIGH);
+      // } else if (input.endsWith("OFF")) {
+      //   digitalWrite(dir, LOW);
+      // } else {
+      //   return;
+      // } 
     }
   }
 }

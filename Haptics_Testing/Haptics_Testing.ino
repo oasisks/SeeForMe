@@ -19,18 +19,21 @@ void loop() {
       String numberPart = input.substring(7);  // get everything after the first 5 characters
       int pwmValue = numberPart.toInt();          // convert to integer
       if (pwmValue == 100) {
-        digitalWrite(LIGHT, HIGH);
+        digitalWrite(HAPTIC, HIGH);
       } else if (pwmValue == 0) {
-        digitalWrite(LIGHT, LOW);
+        digitalWrite(HAPTIC, LOW);
       }
     }
     // int pwmValue = Serial.parseInt();  // Read the PWM value sent by Python (from 0 to 255)
     // Serial.print("pwmValue: ");
     // Serial.println(pwmValue);
-    // if (pwmValue >= 0 && pwmValue <= 255) {
-    //   analogWrite(HAPTIC, pwmValue);  // Apply PWM to control motor speed
+    // if (pwmValue > 0 && pwmValue <= 255) {
+    //   // analogWrite(HAPTIC, pwmValue);  // Apply PWM to control motor speed
+    //   digitalWrite(HAPTIC, HIGH);
     //   Serial.print("Motor PWM set to: ");
     //   Serial.println(pwmValue);
+    // } else if (pwmValue == 0) {
+    //   digitalWrite(HAPTIC, LOW);
     // }
 
   }

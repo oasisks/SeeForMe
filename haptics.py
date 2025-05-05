@@ -11,17 +11,26 @@ else:
     print("Failed to open serial port!")
 ser.flush()
 
-ser.write(b'WARN: RIGHT ON\n')
+# # ser.write(b'WARN: RIGHT 50\n')
+# # time.sleep(0.5)
+# # ser.write(b'WARN: FORWARD 50\n')
+# # time.sleep(0.5)
+# # ser.write(b'WARN: FORWARD OFF\n')
+# # time.sleep(0.5)
+ser.write(b'WARN: LEFT 50\n')
+print("HERE")
+time.sleep(2)
+# ser.write(b'WARN: RIGHT OFF\n')
+# time.sleep(0.5)
+ser.write(b'WARN: LEFT 0\n')
 time.sleep(0.5)
-ser.write(b'WARN: FORWARD ON\n')
+ser.write(b'WARN: RIGHT 100\n')
 time.sleep(0.5)
-ser.write(b'WARN: FORWARD OFF\n')
+ser.write(b'WARN: LEFT 150\n')
+time.sleep(2)
+ser.write(b'WARN: LEFT 0\n')
 time.sleep(0.5)
-ser.write(b'WARN: LEFT ON\n')
-time.sleep(0.5)
-ser.write(b'WARN: RIGHT OFF\n')
-time.sleep(0.5)
-ser.write(b'WARN: LEFT OFF\n')
+ser.write(b'WARN: RIGHT 0\n')
 time.sleep(0.5)
 
 # power = 0
@@ -36,12 +45,12 @@ time.sleep(0.5)
 #         # Control motor PWM based on button state
 #         if "STRONG" in button_state and not power == 2:
 #             power = 2
-#             ser.write(b'POWER: 100\n')  # Send PWM value to Arduino to turn the motor at full speed
+#             ser.write(b'WARN: LEFT 100\n')  # Send PWM value to Arduino to turn the motor at full speed
 #         elif "WEAK" in button_state and not power == 1:
 #             power = 1
-#             ser.write(b'POWER: 50\n')  # Send PWM value to Arduino to turn the motor at lower speed
+#             ser.write(b'WARN: LEFT 50\n')  # Send PWM value to Arduino to turn the motor at lower speed
 #         elif "NONE" in button_state and not power == 0:
 #             power = 0
-#             ser.write(b'POWER: 0\n')
+#             ser.write(b'WARN: LEFT 0\n')
     
 #     time.sleep(0.1)  # Delay to avoid constantly querying the serial port
