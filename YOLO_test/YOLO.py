@@ -1,7 +1,14 @@
 from ultralytics import YOLO
 from typing import List, Dict, Tuple
 import numpy as np
-threshold = .5
+from homography import Homog
+
+# Initialize homography
+HOMOG = Homog()
+
+# Initialize parameters
+CONF_THRESHOLD = .5
+DIST_THRESHOLD = 100 # inches away from the camera
 
 def filter_results(results) -> Dict[str, Dict[str, List|Dict]]:
     """
@@ -18,22 +25,27 @@ def filter_results(results) -> Dict[str, Dict[str, List|Dict]]:
         objects = result.to_df()['name'].to_list()
         boxes = result.boxes  # Boxes object for bounding box outputs
         coords = boxes.xywhn  # normalized xywh (x_center, y_center, width, height)
-        probs = boxes.conf  # Bounding box coordinates xyxy (Top-left x, Top-left y, Bottom-right x, Bottom-right y)
+        xyxy_coords = boxes.xyxy # Bounding box coordinates xyxy (Top-left x, Top-left y, Bottom-right x, Bottom-right y)
+        probs = boxes.conf  
         for i in range(len(objects)):
             prob = probs[i]
             coord = coords[i]
-            if prob < threshold:
+            xyxy_coord = xyxy_coords[i]
+            if prob < CONF_THRESHOLD:
+                continue
+            z_dist, _ = HOMOG.transformUvToXy(u=coord[0], v=xyxy_coord[3]) # u = x_center, v = bottom-most y
+            if z_dist > DIST_THRESHOLD:
                 continue
             x_center = coord[0]
             if x_center < 0.33:
                 results_dict["left"]["objects"].append(objects[i])
-                results_dict["left"]["bounding_boxes"].append(boxes.xyxy[i].tolist())
+                results_dict["left"]["bounding_boxes"].append(xyxy_coord.tolist())
             elif x_center > 0.66:
                 results_dict["right"]["objects"].append(objects[i])
-                results_dict["right"]["bounding_boxes"].append(boxes.xyxy[i].tolist())
+                results_dict["right"]["bounding_boxes"].append(xyxy_coord.tolist())
             else:
                 results_dict["forward"]["objects"].append(objects[i])
-                results_dict["forward"]["bounding_boxes"].append(boxes.xyxy[i].tolist())
+                results_dict["forward"]["bounding_boxes"].append(xyxy_coord.tolist())
     # count the frequency of each detected object
     results_dict["left"]["objects"] = count_objects(results_dict["left"]["objects"])
     results_dict["forward"]["objects"] = count_objects(results_dict["forward"]["objects"])

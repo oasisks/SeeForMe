@@ -13,6 +13,7 @@ from gemini_api import gemini_image_description
 scene_camera_i = 1  # Index 1 is typically the Camo webcam, but this may vary
 user_camera_i = 0  # Index 0 is typically the built-in webcam
 frames_per_sec = 2
+USE_HAPTICS = False
 
 
 def scene_camera_process(cam_index, queue):
@@ -89,16 +90,17 @@ def main():
     ## Until the system announces any object, the direciton is None: after the first announcement, the direction is set to a dictionary
 
     # Initialize the serial port (haptics)
-    # ser = serial.Serial('/dev/tty.usbmodem1101', 9600,
-    #                     timeout=1)  # Change to your port (e.g., "/dev/ttyUSB0" for Linux)
-    # # ser = serial.Serial('COM3', 9600, timeout=1)  # Change to your port (e.g., "/dev/ttyUSB0" for Linux)
-    # time.sleep(2)
-    #
-    # if ser.is_open:
-    #     print("Serial port opened successfully!")
-    # else:
-    #     print("Failed to open serial port!")
-    # ser.flush()
+    if USE_HAPTICS:
+        ser = serial.Serial('/dev/tty.usbmodem1101', 9600,
+                            timeout=1)  # Change to your port (e.g., "/dev/ttyUSB0" for Linux)
+        # ser = serial.Serial('COM3', 9600, timeout=1)  # Change to your port (e.g., "/dev/ttyUSB0" for Linux)
+        time.sleep(2)
+        
+        if ser.is_open:
+            print("Serial port opened successfully!")
+        else:
+            print("Failed to open serial port!")
+        ser.flush()
 
     mp.set_start_method("spawn")
     result_q = mp.Queue()
@@ -197,20 +199,21 @@ def main():
                 text_to_speech(object_descriptions)
 
             # Haptics object warning loop
-            # if direction.value not in left_dir and "sports ball" in detected_objects_left:
-            #     ser.write(b'WARN: LEFT ON\n')
-            # elif direction.value in left_dir or "sports ball" not in detected_objects_left:
-            #     ser.write(b'WARN: LEFT OFF\n')
-            #
-            # if direction.value not in forward_dir and "sports ball" in detected_objects_forward:
-            #     ser.write(b'WARN: FORWARD ON\n')
-            # elif direction.value in forward_dir or "sports ball" not in detected_objects_forward:
-            #     ser.write(b'WARN: FORWARD OFF\n')
-            #
-            # if direction.value not in right_dir and "sports ball" in detected_objects_right:
-            #     ser.write(b'WARN: RIGHT ON\n')
-            # elif direction.value in right_dir or "sports ball" not in detected_objects_right:
-            #     ser.write(b'WARN: RIGHT OFF\n')
+            if USE_HAPTICS:
+                if direction.value not in left_dir and "sports ball" in detected_objects_left:
+                    ser.write(b'WARN: LEFT ON\n')
+                elif direction.value in left_dir or "sports ball" not in detected_objects_left:
+                    ser.write(b'WARN: LEFT OFF\n')
+                
+                if direction.value not in forward_dir and "sports ball" in detected_objects_forward:
+                    ser.write(b'WARN: FORWARD ON\n')
+                elif direction.value in forward_dir or "sports ball" not in detected_objects_forward:
+                    ser.write(b'WARN: FORWARD OFF\n')
+                
+                if direction.value not in right_dir and "sports ball" in detected_objects_right:
+                    ser.write(b'WARN: RIGHT ON\n')
+                elif direction.value in right_dir or "sports ball" not in detected_objects_right:
+                    ser.write(b'WARN: RIGHT OFF\n')
 
             del direction, detected_objects_dict
 
