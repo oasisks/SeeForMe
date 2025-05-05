@@ -33,9 +33,9 @@ def filter_results(results) -> Dict[str, Dict[str, List|Dict]]:
             xyxy_coord = xyxy_coords[i]
             if prob < CONF_THRESHOLD:
                 continue
-            z_dist, _ = HOMOG.transformUvToXy(u=coord[0], v=xyxy_coord[3]) # u = x_center, v = bottom-most y
-            if z_dist > DIST_THRESHOLD:
-                continue
+            # z_dist, _ = HOMOG.transformUvToXy(u=coord[0].item(), v=xyxy_coord[3].item()) # u = x_center, v = bottom-most y
+            # if z_dist > DIST_THRESHOLD:
+            #     continue
             x_center = coord[0]
             if x_center < 0.33:
                 results_dict["left"]["objects"].append(objects[i])

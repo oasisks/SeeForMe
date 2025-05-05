@@ -4,13 +4,10 @@ import numpy as np
 import speech_recognition as sr
 from google import genai
 from typing import Callable
-from typing import List, Dict
 from dotenv import load_dotenv
 from PIL import Image
-from YOLO_test import YOLO
-import cv2
-import pprint
 import multiprocessing as mp
+import time
 
 load_dotenv()
 
@@ -57,12 +54,13 @@ def callback(recognizer, audio):
     """
 
 
-def whisper_process(queue, model: str = "base", mic_index: int = 0, pause_threshold: float = 0.8):
+def whisper_process(queue, pause_event: mp.Event, model: str = "base", mic_index: int = 0, pause_threshold: float = 0.8):
     """
     This creates a whisper process
 
     This listens in the background for any text that was spoken
     :param queue: the process queue
+    :param pause_event: a pause event for finer process control
     :param model: the type of model ("tiny", "base", "small", "medium", "large", "turbo")
     :param mic_index: the index of the mic
     :param pause_threshold: the silent threshold in seconds before stop listening
@@ -76,11 +74,15 @@ def whisper_process(queue, model: str = "base", mic_index: int = 0, pause_thresh
     with m as source:
         r.adjust_for_ambient_noise(source)
         while True:
+            if pause_event.is_set():
+                time.sleep(0.5)
+                continue
             try:
+                print("Start talking!")
                 audio = r.listen(source)
                 text = r.recognize_faster_whisper(audio, language="en", model=model).lstrip(" ").rstrip(" ")
                 queue.put(("whisper", text))
-                print(f"The text generated: {text}")
+                # print(f"The text generated: {text}")
             except sr.UnknownValueError:
                 queue.put(("whisper", "COULDN'T UNDERSTAND"))
             except sr.RequestError as e:
@@ -246,7 +248,34 @@ class Transcriber:
             }
         ]
         Output: "There is no object in front of you."
-
+        Example 4:
+        Image: An image of a brown chair on the left, a white table in the center, and a black mouse in the center.
+        Message History: [
+            {
+                "agent": "user",
+                "message": "What the yes.",
+                "objects": {
+                    "left": {"chair": 1},
+                    "right": {"table": 1},
+                    "forward": {"mouse": 1}
+                }
+            }
+        ]
+        Output: "Sorry I don't understand your query. Can you please try again?"
+        Example 5:
+        Image: An image of a brown chair on the left, a white table in the center, and a black mouse in the center.
+        Message History: [
+            {
+                "agent": "user",
+                "message": "Laugh at me",
+                "objects": {
+                    "left": {"chair": 1},
+                    "right": {"table": 1},
+                    "forward": {"mouse": 1}
+                }
+            }
+        ]
+        Output: "Sorry I don't understand your query. Can you please try again?"
         """
 
         query = f"""

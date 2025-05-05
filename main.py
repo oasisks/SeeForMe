@@ -2,11 +2,12 @@ import face_tracker.tracking
 from face_tracker.tracking import Tracker
 from YOLO_test.YOLO import yolo_object_detection_v11, object_description_generator
 from audio_output import text_to_speech
-from transcription.transcriber import whisper_process
+from transcription.transcriber import whisper_process, Transcriber
 import cv2
 import serial
 import multiprocessing as mp
 import time
+import keyboard
 from gemini_api import gemini_image_description
 
 # Global variables
@@ -87,6 +88,7 @@ def main():
     # Initialize the face tracker
     current_objects = None
     history_objects = {"left": None, "forward": None, "right": None}
+    transcriber = Transcriber()
     ## Until the system announces any object, the direciton is None: after the first announcement, the direction is set to a dictionary
 
     # Initialize the serial port (haptics)
@@ -107,22 +109,37 @@ def main():
 
     p1 = mp.Process(target=user_camera_process, args=(user_camera_i, result_q))
     p2 = mp.Process(target=scene_camera_process, args=(scene_camera_i, result_q))
+
+    model = "base"
+    mic_index = 1
+    pause_threshold = 0.8
+    pause_event = mp.Event()
+    p3 = mp.Process(target=whisper_process, args=(result_q, pause_event, model, mic_index, pause_threshold))
+
     p1.start()
     p2.start()
+    p3.start()
     # Open the webcam feed from Camo (adjust the index if needed)
     # user_camera = cv2.VideoCapture(user_camera_i) # Index 0 is typically the built-in webcam
     # scene_camera = cv2.VideoCapture(scene_camera_i) # Index 1 is typically the Camo webcam, but this may vary
-
+    pause_event.set()
+    flag = False
     direction = face_tracker.tracking.FACE_DIRECTION.INDETERMINATE
     while True:
+        if keyboard.is_pressed("a"):
+            flag = True
+            pause_event.clear()
         who, data = result_q.get()
-
+        # print(who)
         if who == "scene":
             detected_objects_dict, scene_image_rgb = data
+        elif who == "whisper":
+            text = data
         else:
             direction = data
-        print(history_objects)
         if "detected_objects_dict" in locals() and "direction" in locals():
+            # print(detected_objects_dict)
+            # print(direction)
             # Perform object detection on the scene camera frame
             detected_objects_left = detected_objects_dict["left"]["objects"]
             detected_objects_forward = detected_objects_dict["forward"]["objects"]
@@ -156,7 +173,7 @@ def main():
                     if history_objects[current_direction] is None:
                         objects_to_announce = None # In this case, we want to announce "no objects detected"
                         history_objects[current_direction] = {}  # start fresh so that we can detect if there's a change for next time
-                    else: # announce the objects that were removed or no change detected 
+                    else: # announce the objects that were removed or no change detected
                         objects_to_announce = {k:f"removed {v}" for k, v in history_objects[current_direction].items()}
                         history_objects[current_direction] = {}  # clear history
                 else:
@@ -195,8 +212,9 @@ def main():
                 #     x1, y1, x2, y2 = map(int, box)
                 #     # Draw a rectangle (bounding box)
                 #     cv2.rectangle(scene_camera_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            
-                text_to_speech(object_descriptions)
+
+                if not flag:
+                    text_to_speech(object_descriptions)
 
             # Haptics object warning loop
             if USE_HAPTICS:
@@ -204,21 +222,31 @@ def main():
                     ser.write(b'WARN: LEFT ON\n')
                 elif direction.value in left_dir or "sports ball" not in detected_objects_left:
                     ser.write(b'WARN: LEFT OFF\n')
-                
+
                 if direction.value not in forward_dir and "sports ball" in detected_objects_forward:
                     ser.write(b'WARN: FORWARD ON\n')
                 elif direction.value in forward_dir or "sports ball" not in detected_objects_forward:
                     ser.write(b'WARN: FORWARD OFF\n')
-                
+
                 if direction.value not in right_dir and "sports ball" in detected_objects_right:
                     ser.write(b'WARN: RIGHT ON\n')
                 elif direction.value in right_dir or "sports ball" not in detected_objects_right:
                     ser.write(b'WARN: RIGHT OFF\n')
+            if "text" in locals():
+                print(f"Results from whisper: {text}")
+                flag = False
+                transcriber.push_user_query(text, detected_objects_dict)
+                result = transcriber.get_gemini_user_response(scene_image_rgb)
+                text_to_speech(result)
+                print(result)
+                pause_event.set()
+                del text
 
             del direction, detected_objects_dict
 
     p1.terminate()
     p2.terminate()
+    p3.terminate()
     # ser.close()
 
 
