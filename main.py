@@ -14,8 +14,7 @@ from gemini_api import gemini_image_description
 scene_camera_i = 1  # Index 1 is typically the Camo webcam, but this may vary
 user_camera_i = 0  # Index 0 is typically the built-in webcam
 frames_per_sec = 10
-USE_HAPTICS = True
-
+USE_HAPTICS = True # Set to true only if the haptics system is hooked up - otherwise, it will throw an error
 
 def scene_camera_process(cam_index, queue):
     """
@@ -222,17 +221,23 @@ def main():
             if USE_HAPTICS:
                 if direction.value not in left_dir and "person" in detected_objects_left:
                     ser.write(b'WARN: LEFT 200\n')
-                elif direction.value in left_dir or "person" not in detected_objects_left:
+                elif direction.value not in left_dir and "sports ball" in detected_objects_left:
+                    ser.write(b'WARN: LEFT 50\n')
+                elif direction.value in left_dir or ("person" not in detected_objects_left and 'sports ball' not in detected_objects_left):
                     ser.write(b'WARN: LEFT 0\n')
 
                 if direction.value not in forward_dir and "person" in detected_objects_forward:
                     ser.write(b'WARN: FORWARD 200\n')
-                elif direction.value in forward_dir or "person" not in detected_objects_forward:
+                elif direction.value not in forward_dir and "sports ball" in detected_objects_forward:
+                    ser.write(b'WARN: FORWARD 50\n')
+                elif direction.value in forward_dir or ("person" not in detected_objects_forward and 'sports ball' not in detected_objects_forward):
                     ser.write(b'WARN: FORWARD 0\n')
 
                 if direction.value not in right_dir and "person" in detected_objects_right:
+                    ser.write(b'WARN: RIGHT 200\n')
+                elif direction.value not in right_dir and "sports ball" in detected_objects_right:
                     ser.write(b'WARN: RIGHT 50\n')
-                elif direction.value in right_dir or "person" not in detected_objects_right:
+                elif direction.value in right_dir or ("person" not in detected_objects_right and 'sports ball' not in detected_objects_right):
                     ser.write(b'WARN: RIGHT 0\n')
             if "text" in locals() and flag:
                 flag = False

@@ -1,6 +1,6 @@
 #define LEFT 9
-#define FORWARD 10
-#define RIGHT 11
+#define FORWARD 11
+#define RIGHT 10
 
 void setup() {
   pinMode(LEFT, OUTPUT);
