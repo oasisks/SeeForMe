@@ -13,8 +13,8 @@ from gemini_api import gemini_image_description
 # Global variables
 scene_camera_i = 1  # Index 1 is typically the Camo webcam, but this may vary
 user_camera_i = 0  # Index 0 is typically the built-in webcam
-frames_per_sec = 2
-USE_HAPTICS = False
+frames_per_sec = 10
+USE_HAPTICS = True
 
 
 def scene_camera_process(cam_index, queue):
@@ -93,9 +93,9 @@ def main():
 
     # Initialize the serial port (haptics)
     if USE_HAPTICS:
-        ser = serial.Serial('/dev/tty.usbmodem1101', 9600,
-                            timeout=1)  # Change to your port (e.g., "/dev/ttyUSB0" for Linux)
-        # ser = serial.Serial('COM3', 9600, timeout=1)  # Change to your port (e.g., "/dev/ttyUSB0" for Linux)
+        # ser = serial.Serial('/dev/tty.usbmodem1101', 9600,
+        #                     timeout=1)  # Change to your port (e.g., "/dev/ttyUSB0" for Linux)
+        ser = serial.Serial('COM3', 9600, timeout=1)  # Change to your port (e.g., "/dev/ttyUSB0" for Linux)
         time.sleep(2)
         
         if ser.is_open:
@@ -197,7 +197,7 @@ def main():
                             history_objects[current_direction][obj] = count  # new object detected
                             objects_to_announce[obj] = f"{count}"
 
-                print(f"Detected objects: {objects_to_announce}")
+                # print(f"Detected objects: {objects_to_announce}")
                 if current_direction == "left":
                     current_img = scene_image_rgb[:scene_image_rgb.shape[0]//3, :, :]
                 elif current_direction == "right":
@@ -213,32 +213,34 @@ def main():
                 #     # Draw a rectangle (bounding box)
                 #     cv2.rectangle(scene_camera_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
+                if object_descriptions.lower().strip() == "no changes detected.":
+                    continue
                 if not flag:
                     text_to_speech(object_descriptions)
 
             # Haptics object warning loop
             if USE_HAPTICS:
-                if direction.value not in left_dir and "sports ball" in detected_objects_left:
-                    ser.write(b'WARN: LEFT ON\n')
-                elif direction.value in left_dir or "sports ball" not in detected_objects_left:
-                    ser.write(b'WARN: LEFT OFF\n')
+                if direction.value not in left_dir and "person" in detected_objects_left:
+                    ser.write(b'WARN: LEFT 200\n')
+                elif direction.value in left_dir or "person" not in detected_objects_left:
+                    ser.write(b'WARN: LEFT 0\n')
 
-                if direction.value not in forward_dir and "sports ball" in detected_objects_forward:
-                    ser.write(b'WARN: FORWARD ON\n')
-                elif direction.value in forward_dir or "sports ball" not in detected_objects_forward:
-                    ser.write(b'WARN: FORWARD OFF\n')
+                if direction.value not in forward_dir and "person" in detected_objects_forward:
+                    ser.write(b'WARN: FORWARD 200\n')
+                elif direction.value in forward_dir or "person" not in detected_objects_forward:
+                    ser.write(b'WARN: FORWARD 0\n')
 
-                if direction.value not in right_dir and "sports ball" in detected_objects_right:
-                    ser.write(b'WARN: RIGHT ON\n')
-                elif direction.value in right_dir or "sports ball" not in detected_objects_right:
-                    ser.write(b'WARN: RIGHT OFF\n')
-            if "text" in locals():
-                print(f"Results from whisper: {text}")
+                if direction.value not in right_dir and "person" in detected_objects_right:
+                    ser.write(b'WARN: RIGHT 50\n')
+                elif direction.value in right_dir or "person" not in detected_objects_right:
+                    ser.write(b'WARN: RIGHT 0\n')
+            if "text" in locals() and flag:
                 flag = False
+                if not text:
+                    continue
                 transcriber.push_user_query(text, detected_objects_dict)
                 result = transcriber.get_gemini_user_response(scene_image_rgb)
                 text_to_speech(result)
-                print(result)
                 pause_event.set()
                 del text
 

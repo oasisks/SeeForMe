@@ -7,7 +7,7 @@ from homography import Homog
 HOMOG = Homog()
 
 # Initialize parameters
-CONF_THRESHOLD = .5
+CONF_THRESHOLD = .6
 DIST_THRESHOLD = 100 # inches away from the camera
 
 def filter_results(results) -> Dict[str, Dict[str, List|Dict]]:

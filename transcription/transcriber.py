@@ -7,7 +7,10 @@ from typing import Callable
 from dotenv import load_dotenv
 from PIL import Image
 import multiprocessing as mp
+import cv2
 import time
+import pprint
+from YOLO_test import YOLO
 
 load_dotenv()
 
@@ -308,26 +311,26 @@ if __name__ == '__main__':
     print("Initiating listening")
     # text = active_listening(model="base", device_index=1)
     # print(text)
-    # image_path = "../table.jpeg"
-    # image = cv2.imread(image_path)
-    # detected_objects = YOLO.yolo_object_detection_v11(image_path)
-    #
-    # transcriber = Transcriber()
-    # transcriber.push_user_query("What is to the left of me?", detected_objects)
-    # pprint.pprint(transcriber.history)
-    # response = transcriber.get_gemini_user_response(image)
-    #
-    # print(response)
-    # pprint.pprint(transcriber.history)
+    image_path = "../table.jpeg"
+    image = cv2.imread(image_path)
+    detected_objects = YOLO.yolo_object_detection_v11(image_path)
 
-    mp.set_start_method("spawn")
-    result_q = mp.Queue()
+    transcriber = Transcriber()
+    transcriber.push_user_query("What is to the left of me?", detected_objects)
+    pprint.pprint(transcriber.history)
+    response = transcriber.get_gemini_user_response(image)
 
-    model = "base"
-    mic_index = 1
-    pause_threshold = 0.8
-    p1 = mp.Process(target=whisper_process, args=(result_q, model, mic_index, pause_threshold))
-    p1.start()
+    print(response)
+    pprint.pprint(transcriber.history)
+
+    # mp.set_start_method("spawn")
+    # result_q = mp.Queue()
+    #
+    # model = "base"
+    # mic_index = 1
+    # pause_threshold = 0.8
+    # p1 = mp.Process(target=whisper_process, args=(result_q, model, mic_index, pause_threshold))
+    # p1.start()
     # print(detected_objects)
     # history_entry = history_entry_generator("What is to the left of me?", detected_objects)
     # message_history = [history_entry]
